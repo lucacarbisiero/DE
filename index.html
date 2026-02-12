@@ -24,8 +24,6 @@
       --shadow: 0 6px 18px rgba(0,0,0,.06);
       --accent:#111;
       --danger:#b42318;
-      --ok:#067647;
-      --warn:#b54708;
       --radius:14px;
     }
     *{box-sizing:border-box}
@@ -39,7 +37,7 @@
     .app{
       max-width: 900px;
       margin: 0 auto;
-      padding-bottom: 84px; /* space for bottom nav */
+      padding-bottom: 84px;
     }
     header{
       position:sticky;
@@ -208,7 +206,6 @@
     }
     button:active{ transform: translateY(1px); }
 
-    /* Table */
     .table-wrap{ overflow:auto; border-radius:12px; border:1px solid var(--border); }
     table{
       width:100%;
@@ -241,9 +238,7 @@
       background:#fff;
       box-shadow: var(--shadow);
     }
-    .project-item .meta{
-      min-width:0;
-    }
+    .project-item .meta{ min-width:0; }
     .project-item .name{
       font-weight:800;
       font-size:14px;
@@ -262,7 +257,6 @@
       max-width: 56vw;
     }
 
-    /* Bottom nav */
     .bottom-nav{
       position:fixed;
       left:0; right:0; bottom:0;
@@ -345,6 +339,14 @@
 
           <div class="actions">
             <button class="primary" id="btnNewProject"><i class="fa-solid fa-plus"></i> Nuovo Progetto</button>
+
+            <!-- NEW: Save on demand -->
+            <button id="btnSaveNow" title="Salva subito in memoria (LocalStorage)"><i class="fa-solid fa-floppy-disk"></i> Salva ora</button>
+
+            <!-- NEW: Import JSON -->
+            <button id="btnImportProjectJSON" title="Importa un progetto da file JSON"><i class="fa-solid fa-file-import"></i> Importa progetto (JSON)</button>
+            <input id="fileImportJSON" class="hidden" type="file" accept=".json,application/json" />
+
             <button id="btnExportProjectJSON" title="Esporta progetto selezionato in JSON"><i class="fa-solid fa-file-code"></i> Esporta progetto (JSON)</button>
             <button id="btnExportAllExcel" title="Esporta tutto in Excel multi-sheet"><i class="fa-solid fa-file-excel"></i> Esporta tutto (Excel)</button>
           </div>
@@ -503,13 +505,6 @@ function uuid(){
   return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
 }
 
-function nowHHMM(){
-  const d = new Date();
-  const hh = String(d.getHours()).padStart(2,"0");
-  const mm = String(d.getMinutes()).padStart(2,"0");
-  return `${hh}:${mm}`;
-}
-
 function loadState(){
   try{
     const raw = localStorage.getItem(LS_KEY);
@@ -533,8 +528,7 @@ function saveState(state){
 
 let state = loadState();
 
-/* autosave: requisito dice 2 minuti; nel riepilogo finale compare 5 min.
-   Imposto 2 min come richiesto nella sezione "SISTEMA SALVATAGGIO". */
+/* Autosave ogni 2 minuti (requisito) */
 const AUTOSAVE_MS = 2 * 60 * 1000;
 
 /* =========================
@@ -675,7 +669,6 @@ function emptyProject(){
 function getActiveProject(){
   return state.projects.find(p => p.id === state.activeProjectId) || null;
 }
-
 function touchProject(p){
   p.updatedAt = new Date().toISOString();
 }
@@ -692,8 +685,18 @@ function toast(msg){
   setTimeout(()=>t.classList.remove("show"), 1400);
 }
 
+function renderSaveStatus(){
+  const p = getActiveProject();
+  if(!p){
+    el("saveStatus").textContent = "Nessun progetto";
+    el("activeProjectTiny").textContent = "";
+    return;
+  }
+  el("saveStatus").textContent = `Ultimo salvataggio: ${state.lastSavedAt ? new Date(state.lastSavedAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) : "—"}`;
+  el("activeProjectTiny").textContent = `${p.info.ragioneSociale || "Progetto"} • ${p.info.indirizzo || ""}`.trim();
+}
+
 function setRoute(route){
-  // route: home | info | one of section keys (impianti, ...)
   document.querySelectorAll(".nav-btn").forEach(b=>{
     b.classList.toggle("active", b.dataset.route === route);
   });
@@ -709,37 +712,22 @@ function setRoute(route){
     return;
   }
   if(route === "info"){
-    // show project info as a "section-like" view using section template
     openInfoView();
     return;
   }
 
-  // sections require active project
   const p = getActiveProject();
   if(!p){
     toast("Seleziona o crea un progetto prima.");
     setRoute("home");
     return;
   }
-
   openSection(route);
 }
 
 /* =========================
-   HOME RENDER / ACTIONS
+   HOME
 ========================= */
-function renderSaveStatus(){
-  const p = getActiveProject();
-  if(!p){
-    el("saveStatus").textContent = "Nessun progetto";
-    el("activeProjectTiny").textContent = "";
-    return;
-  }
-  el("saveStatus").textContent = `Ultimo salvataggio: ${state.lastSavedAt ? new Date(state.lastSavedAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) : "—"}`;
-  el("activeProjectTiny").textContent = `${p.info.ragioneSociale || "Progetto"} • ${p.info.indirizzo || ""}`.trim();
-  el("appTitle").textContent = "Diagnosi Energetica";
-}
-
 function renderHome(){
   renderSaveStatus();
 
@@ -778,8 +766,7 @@ function renderHome(){
       btnOpen.innerHTML = `<i class="fa-solid fa-folder-open"></i> Apri`;
       btnOpen.onclick = ()=>{
         state.activeProjectId = p.id;
-        saveState(state);
-        renderSaveStatus();
+        persist();
         toast("Progetto selezionato");
       };
 
@@ -791,7 +778,7 @@ function renderHome(){
         if(!confirm("Eliminare il progetto? (Operazione irreversibile)")) return;
         state.projects = state.projects.filter(x=>x.id!==p.id);
         if(state.activeProjectId === p.id) state.activeProjectId = null;
-        saveState(state);
+        persist();
         renderHome();
         toast("Progetto eliminato");
       };
@@ -808,7 +795,6 @@ function renderHome(){
 function openNewProjectForm(show){
   el("newProjectCard").classList.toggle("hidden", !show);
   if(show){
-    // defaults
     el("p_data").value = new Date().toISOString().slice(0,10);
   }
 }
@@ -833,10 +819,8 @@ function readNewProjectForm(){
 }
 
 /* =========================
-   INFO VIEW (Project general)
+   INFO VIEW
 ========================= */
-let infoEditMode = false;
-
 function openInfoView(){
   const p = getActiveProject();
   if(!p){
@@ -872,57 +856,81 @@ function openInfoView(){
     ["Note","note","textarea"],
   ];
 
-  // Build responsive layout chunks
-  const row1 = document.createElement("div"); row1.className="row cols-2";
-  row1.appendChild(inputBlock(fields[0], p.info));
-  row1.appendChild(inputBlock(fields[1], p.info));
-  form.appendChild(row1);
+  function inputBlock(fieldDef, dataObj){
+    const [labelText, key, type, options] = fieldDef;
+    const wrap = document.createElement("div");
+    const lab = document.createElement("label");
+    lab.textContent = labelText;
+    wrap.appendChild(lab);
 
-  const row2 = document.createElement("div"); row2.className="row cols-3";
-  row2.appendChild(inputBlock(fields[2], p.info));
-  row2.appendChild(inputBlock(fields[7], p.info));
-  row2.appendChild(inputBlock(fields[8], p.info));
-  form.appendChild(row2);
+    let input;
+    if(type === "select"){
+      input = document.createElement("select");
+      (options || []).forEach(opt=>{
+        const o = document.createElement("option");
+        o.value = opt;
+        o.textContent = opt === "" ? "—" : opt;
+        input.appendChild(o);
+      });
+      input.value = dataObj[key] ?? "";
+    }else if(type === "textarea"){
+      input = document.createElement("textarea");
+      input.value = dataObj[key] ?? "";
+    }else if(type === "checkbox"){
+      const box = document.createElement("div");
+      box.className = "check";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!dataObj[key];
+      cb.dataset.infokey = key;
+      const sp = document.createElement("span");
+      sp.textContent = "Sì";
+      box.appendChild(cb);
+      box.appendChild(sp);
+      wrap.appendChild(box);
+      return wrap;
+    }else{
+      input = document.createElement("input");
+      input.type = (type === "date") ? "date" : (type || "text");
+      if(type === "number"){
+        input.inputMode = "decimal";
+        input.step = "0.1";
+        input.value = (dataObj[key] ?? "") === null ? "" : (dataObj[key] ?? "");
+      }else{
+        input.value = dataObj[key] ?? "";
+      }
+    }
+    input.dataset.infokey = key;
+    wrap.appendChild(input);
+    return wrap;
+  }
 
-  const row3 = document.createElement("div"); row3.className="row cols-2";
-  row3.appendChild(inputBlock(fields[3], p.info));
-  row3.appendChild(inputBlock(fields[4], p.info));
-  form.appendChild(row3);
+  function addRow(cols, blocks){
+    const r = document.createElement("div");
+    r.className = `row cols-${cols}`;
+    blocks.forEach(b=>r.appendChild(b));
+    form.appendChild(r);
+  }
 
-  const row4 = document.createElement("div"); row4.className="row cols-2";
-  row4.appendChild(inputBlock(fields[5], p.info));
-  row4.appendChild(inputBlock(fields[6], p.info));
-  form.appendChild(row4);
+  addRow(2, [inputBlock(fields[0], p.info), inputBlock(fields[1], p.info)]);
+  addRow(3, [inputBlock(fields[2], p.info), inputBlock(fields[7], p.info), inputBlock(fields[8], p.info)]);
+  addRow(2, [inputBlock(fields[3], p.info), inputBlock(fields[4], p.info)]);
+  addRow(2, [inputBlock(fields[5], p.info), inputBlock(fields[6], p.info)]);
+  addRow(2, [inputBlock(fields[9], p.info), inputBlock(fields[10], p.info)]);
+  addRow(3, [inputBlock(fields[11], p.info), inputBlock(fields[12], p.info), inputBlock(fields[13], p.info)]);
+  addRow(1, [inputBlock(fields[14], p.info)]);
 
-  const row5 = document.createElement("div"); row5.className="row cols-2";
-  row5.appendChild(inputBlock(fields[9], p.info));
-  row5.appendChild(inputBlock(fields[10], p.info));
-  form.appendChild(row5);
-
-  const rowChecks = document.createElement("div"); rowChecks.className="row cols-3";
-  rowChecks.appendChild(inputBlock(fields[11], p.info));
-  rowChecks.appendChild(inputBlock(fields[12], p.info));
-  rowChecks.appendChild(inputBlock(fields[13], p.info));
-  form.appendChild(rowChecks);
-
-  const rowNote = document.createElement("div"); rowNote.className="row";
-  rowNote.appendChild(inputBlock(fields[14], p.info));
-  form.appendChild(rowNote);
-
-  // Buttons in section template: reuse "Conferma" as Save Info
   el("btnAddOrUpdate").innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Salva info`;
   el("btnCancelEdit").classList.add("hidden");
   el("btnExportSectionExcel").classList.add("hidden");
 
-  // Table not used for info: hide
   el("tableHeadRow").innerHTML = "";
   el("tableBody").innerHTML = "";
   document.querySelector("#view-section .card:nth-child(2)").classList.add("hidden");
 
   el("btnAddOrUpdate").onclick = ()=>{
-    // read back from inputs
     fields.forEach(f=>{
-      const [label,key,type] = f;
+      const [_, key, type] = f;
       const input = document.querySelector(`[data-infokey="${key}"]`);
       if(!input) return;
       if(type === "checkbox") p.info[key] = input.checked;
@@ -936,56 +944,6 @@ function openInfoView(){
   };
 }
 
-function inputBlock(fieldDef, dataObj){
-  const [labelText, key, type, options] = fieldDef;
-  const wrap = document.createElement("div");
-  const lab = document.createElement("label");
-  lab.textContent = labelText;
-  wrap.appendChild(lab);
-
-  let input;
-  if(type === "select"){
-    input = document.createElement("select");
-    (options || []).forEach(opt=>{
-      const o = document.createElement("option");
-      o.value = opt;
-      o.textContent = opt === "" ? "—" : opt;
-      input.appendChild(o);
-    });
-    input.value = dataObj[key] ?? "";
-  }else if(type === "textarea"){
-    input = document.createElement("textarea");
-    input.value = dataObj[key] ?? "";
-  }else if(type === "checkbox"){
-    // checkbox styled as "check" box
-    const box = document.createElement("div");
-    box.className = "check";
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = !!dataObj[key];
-    cb.dataset.infokey = key;
-    const sp = document.createElement("span");
-    sp.textContent = "Sì";
-    box.appendChild(cb);
-    box.appendChild(sp);
-    wrap.appendChild(box);
-    return wrap;
-  }else{
-    input = document.createElement("input");
-    input.type = (type === "date") ? "date" : (type || "text");
-    if(type === "number"){
-      input.inputMode = "decimal";
-      input.step = "0.1";
-      input.value = (dataObj[key] ?? "") === null ? "" : (dataObj[key] ?? "");
-    }else{
-      input.value = dataObj[key] ?? "";
-    }
-  }
-  input.dataset.infokey = key;
-  wrap.appendChild(input);
-  return wrap;
-}
-
 /* =========================
    SECTION VIEW (records)
 ========================= */
@@ -996,7 +954,6 @@ function openSection(route){
   currentSectionRoute = route;
   editingId = null;
 
-  // show section, hide home
   el("view-home").classList.add("hidden");
   el("view-section").classList.remove("hidden");
   document.querySelector("#view-section .card:nth-child(2)").classList.remove("hidden");
@@ -1008,73 +965,15 @@ function openSection(route){
   el("sectionTitle").innerHTML = `<i class="fa-solid ${def.icon}"></i> ${def.label}`;
   el("sectionHint").textContent = "Compila i campi, premi Conferma: il record si aggiunge alla tabella.";
 
-  // Build form
   buildSectionForm(def);
 
-  // Configure buttons
   el("btnAddOrUpdate").innerHTML = `<i class="fa-solid fa-check"></i> Conferma`;
   el("btnCancelEdit").classList.add("hidden");
   el("btnAddOrUpdate").onclick = ()=> onConfirmRecord();
   el("btnCancelEdit").onclick = ()=> resetForm();
   el("btnExportSectionExcel").onclick = ()=> exportSectionExcel(route);
 
-  // Render table
   renderSectionTable(route);
-}
-
-function buildSectionForm(def){
-  const form = el("sectionForm");
-  form.innerHTML = "";
-
-  // simple layout: 2 columns on wide screens
-  const row = document.createElement("div");
-  row.className = "row cols-2";
-
-  def.fields.forEach((f, idx)=>{
-    const block = document.createElement("div");
-    const lab = document.createElement("label");
-    lab.textContent = f.label;
-    block.appendChild(lab);
-
-    let input;
-    if(f.type === "select"){
-      input = document.createElement("select");
-      const opt0 = document.createElement("option");
-      opt0.value = ""; opt0.textContent = "—";
-      input.appendChild(opt0);
-      f.options.forEach(o=>{
-        const opt = document.createElement("option");
-        opt.value = o; opt.textContent = o;
-        input.appendChild(opt);
-      });
-    }else if(f.type === "number"){
-      input = document.createElement("input");
-      input.type = "number";
-      input.inputMode = "decimal";
-      input.step = f.step || "1";
-      input.placeholder = "";
-    }else{
-      input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "";
-    }
-    input.dataset.field = f.id;
-    block.appendChild(input);
-
-    // distribute: keep 2 columns look by splitting rows every 2 items
-    row.appendChild(block);
-    if((idx % 2) === 1) form.appendChild(row.cloneNode(false)); // not used
-  });
-
-  // Actually append in grouped rows
-  form.innerHTML = "";
-  for(let i=0;i<def.fields.length;i+=2){
-    const r = document.createElement("div");
-    r.className = "row cols-2";
-    r.appendChild(fieldBlock(def.fields[i]));
-    if(def.fields[i+1]) r.appendChild(fieldBlock(def.fields[i+1]));
-    form.appendChild(r);
-  }
 }
 
 function fieldBlock(f){
@@ -1106,6 +1005,18 @@ function fieldBlock(f){
   input.dataset.field = f.id;
   block.appendChild(input);
   return block;
+}
+
+function buildSectionForm(def){
+  const form = el("sectionForm");
+  form.innerHTML = "";
+  for(let i=0;i<def.fields.length;i+=2){
+    const r = document.createElement("div");
+    r.className = "row cols-2";
+    r.appendChild(fieldBlock(def.fields[i]));
+    if(def.fields[i+1]) r.appendChild(fieldBlock(def.fields[i+1]));
+    form.appendChild(r);
+  }
 }
 
 function readFormValues(route){
@@ -1178,7 +1089,6 @@ function renderSectionTable(route){
   const def = SECTIONS[route];
   const arr = p.data[def.key];
 
-  // Head
   const headRow = el("tableHeadRow");
   headRow.innerHTML = "";
   def.fields.forEach(f=>{
@@ -1190,7 +1100,6 @@ function renderSectionTable(route){
   thA.textContent = "Azioni";
   headRow.appendChild(thA);
 
-  // Body
   const body = el("tableBody");
   body.innerHTML = "";
 
@@ -1202,6 +1111,7 @@ function renderSectionTable(route){
       td.textContent = (v === null || v === undefined || v === "") ? "—" : String(v);
       tr.appendChild(td);
     });
+
     const tdA = document.createElement("td");
     tdA.className = "t-actions";
 
@@ -1245,7 +1155,6 @@ function renderSectionTable(route){
     tdA.appendChild(btnD);
     tdA.appendChild(btnX);
     tr.appendChild(tdA);
-
     body.appendChild(tr);
   });
 }
@@ -1304,7 +1213,6 @@ function exportAllExcel(){
 
   const wb = XLSX.utils.book_new();
 
-  // Info Progetto sheet
   const infoRows = [
     { Campo:"Ragione Sociale", Valore: p.info.ragioneSociale || "" },
     { Campo:"Indirizzo sito", Valore: p.info.indirizzo || "" },
@@ -1322,7 +1230,6 @@ function exportAllExcel(){
   const wsInfo = XLSX.utils.json_to_sheet(infoRows);
   XLSX.utils.book_append_sheet(wb, wsInfo, "Info Progetto");
 
-  // Section sheets
   Object.keys(SECTIONS).forEach(route=>{
     const def = SECTIONS[route];
     const rows = (p.data[def.key] || []).map(r=>{
@@ -1340,12 +1247,73 @@ function exportAllExcel(){
 }
 
 /* =========================
-   AUTOSAVE
+   IMPORT JSON (NEW)
+   - Importa SEMPRE come nuovo progetto (no overwrite)
+========================= */
+function normalizeImportedProject(raw){
+  const p = emptyProject();
+
+  // se possibile porta dentro info + data
+  if(raw && typeof raw === "object"){
+    if(raw.info && typeof raw.info === "object"){
+      p.info = { ...p.info, ...raw.info };
+    }
+    if(raw.data && typeof raw.data === "object"){
+      p.data = { ...p.data, ...raw.data };
+    }
+  }
+
+  // garantisci tutte le sezioni
+  const keys = Object.values(SECTIONS).map(s => s.key);
+  keys.forEach(k=>{
+    if(!Array.isArray(p.data[k])) p.data[k] = [];
+    // pulizia minima: assicura _id su record importati
+    p.data[k] = p.data[k].map(r=>{
+      if(r && typeof r === "object"){
+        return { _id: r._id || uuid(), ...r };
+      }
+      return { _id: uuid() };
+    });
+  });
+
+  // sempre nuovo id e timestamp
+  p.id = uuid();
+  p.createdAt = new Date().toISOString();
+  p.updatedAt = new Date().toISOString();
+  return p;
+}
+
+function importProjectFromFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const raw = JSON.parse(reader.result);
+      const imported = normalizeImportedProject(raw);
+
+      // se manca ragione sociale, metti un placeholder
+      if(!imported.info.ragioneSociale){
+        imported.info.ragioneSociale = "Progetto importato";
+      }
+
+      state.projects.push(imported);
+      state.activeProjectId = imported.id;
+      persist();
+      renderHome();
+      toast("Progetto importato");
+    }catch(e){
+      console.error(e);
+      toast("Import fallito: JSON non valido");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* =========================
+   AUTOSAVE + PERSIST
 ========================= */
 let autosaveTimer = null;
 
 function persist(){
-  // save state now
   saveState(state);
   renderSaveStatus();
 }
@@ -1353,19 +1321,18 @@ function persist(){
 function startAutosave(){
   if(autosaveTimer) clearInterval(autosaveTimer);
   autosaveTimer = setInterval(()=>{
-    // nothing special: state already mutated; persist snapshot
-    persist();
-    toast("Autosalvataggio");
+    if(getActiveProject()){
+      persist();
+      toast("Autosalvataggio");
+    }
   }, AUTOSAVE_MS);
 }
 
 function wireAutosaveOnChange(){
   let t = null;
   document.addEventListener("input", ()=>{
-    // debounce quick changes
     clearTimeout(t);
     t = setTimeout(()=> {
-      // only if a project is active
       if(getActiveProject()){
         persist();
       }
@@ -1398,8 +1365,26 @@ el("btnSaveNewProject").onclick = ()=>{
   toast("Progetto creato");
 };
 
+// NEW: Save now
+el("btnSaveNow").onclick = ()=>{
+  persist();
+  toast("Salvato");
+};
+
+// Export buttons
 el("btnExportProjectJSON").onclick = exportProjectJSON;
 el("btnExportAllExcel").onclick = exportAllExcel;
+
+// NEW: Import JSON
+el("btnImportProjectJSON").onclick = ()=>{
+  el("fileImportJSON").value = "";
+  el("fileImportJSON").click();
+};
+el("fileImportJSON").addEventListener("change", (ev)=>{
+  const file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  importProjectFromFile(file);
+});
 
 // Initial render
 renderHome();

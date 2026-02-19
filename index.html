@@ -489,6 +489,12 @@
       <button class="nav-btn" data-route="illuminazione"><i class="fa-solid fa-lightbulb"></i><span>Luci</span></button>
       <button class="nav-btn" data-route="termografia"><i class="fa-solid fa-camera"></i><span>Termografia</span></button>
       <button class="nav-btn" data-route="airleak"><i class="fa-solid fa-wind"></i><span>Air Leak</span></button>
+      <button class="nav-btn" data-route="gruppifrigoriferi"><i class="fa-solid fa-snowflake"></i><span>Gruppi Frigo</span></button>
+      <button class="nav-btn" data-route="compressori"><i class="fa-solid fa-compress"></i><span>Compressori</span></button>
+      <button class="nav-btn" data-route="caricabatterie_muletti"><i class="fa-solid fa-charging-station"></i><span>Muletti</span></button>
+
+
+
 
     </div>
     <div class="nav-inner" style="margin-top:8px">
@@ -649,6 +655,22 @@ airleak: {
     { id:"db", label:"dB", type:"number", step:"0.1" },
     { id:"note", label:"Note", type:"text" }
   ]
+},
+  gruppifrigoriferi: {
+  label: "Gruppi Frigo",
+  icon: "fa-snowflake",
+  key: "gruppi_frigo",
+  fields: [
+    { id:"reparto", label:"Reparto", type:"text" },
+    { id:"modello", label:"Modello", type:"text" },
+    { id:"potenza_frigo_kwf", label:"Potenza frigorifera [kWf]", type:"number", step:"0.1" },
+    { id:"potenza_elettrica_kwe", label:"Potenza elettrica [kWe]", type:"number", step:"0.1" },
+    { id:"cop_eer", label:"COP / EER", type:"number", step:"0.01" },
+    { id:"fluido", label:"Fluido refrigerante", type:"text" },
+    { id:"giorni", label:"Giorni esercizio", type:"number", step:"1" },
+    { id:"ore", label:"Ore esercizio", type:"number", step:"0.5" },
+    { id:"note", label:"Note", type:"text" }
+  ]
 }
 };
 
@@ -680,8 +702,47 @@ function emptyProject(){
       hvac: [],
       chiusure_trasparenti: [],
       chiusure_opache: [],
-      air_leak: []
-    }
+      air_leak: [],
+      gruppi_frigo: [],
+      compressori: [],
+      caricabatterie_muletti: []
+    },
+    compressori: {
+  label: "Compressori",
+  icon: "fa-compress",
+  key: "compressori",
+  fields: [
+    { id:"reparto", label:"Reparto", type:"text" },
+    { id:"marca_modello", label:"Marca / Modello", type:"text" },
+    { id:"tipo", label:"Tipo compressore", type:"select", options:["vite","pistoni","centrifugo","scroll","altro"] },
+    { id:"potenza_kw", label:"Potenza elettrica [kW]", type:"number", step:"0.1" },
+    { id:"portata_m3min", label:"Portata [m³/min]", type:"number", step:"0.1" },
+    { id:"pressione_bar", label:"Pressione [bar]", type:"number", step:"0.1" },
+    { id:"temperatura_c", label:"Temperatura (°C)", type:"number", step:"0.1" },
+    { id:"evacuazione_calore", label:"Evacuazione calore", type:"select", options:["No","Sì"] },
+    { id:"inverter", label:"Inverter", type:"select", options:["No","Sì"] },
+    { id:"giorni", label:"Giorni esercizio", type:"number", step:"1" },
+    { id:"ore", label:"Ore esercizio", type:"number", step:"0.5" },
+    { id:"note", label:"Note", type:"text" }
+  ]
+},
+    caricabatterie_muletti: {
+  label: "Caricabatterie Muletti",
+  icon: "fa-charging-station",
+  key: "caricabatterie_muletti",
+  fields: [
+    { id:"id", label:"ID", type:"number", step:"1" },
+    { id:"reparto", label:"Reparto / Area", type:"text" },
+    { id:"marca_modello", label:"Marca / Modello", type:"text" },
+    { id:"n_postazioni", label:"N° postazioni", type:"number", step:"1" },
+    { id:"tensione_v", label:"Tensione batteria [V]", type:"select", options:["24","36","48","72","80","Altro"] },
+    { id:"corrente_a", label:"Corrente di carica [A]", type:"number", step:"0.1" },
+    { id:"tipo_caricatore", label:"Tipo caricatore", type:"select", options:["Tradizionale/Trafo","HF (alta frequenza)","Altro"] },
+    { id:"giorni", label:"Giorni esercizio", type:"number", step:"1" },
+    { id:"ore", label:"Ore esercizio", type:"number", step:"0.5" },
+    { id:"note", label:"Note", type:"text" }
+  ]
+}
   };
 }
 
@@ -1413,6 +1474,7 @@ wireAutosaveOnChange();
 </script>
 </body>
 </html>
+
 
 
 

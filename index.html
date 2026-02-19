@@ -315,6 +315,32 @@
       z-index:30;
     }
     .toast.show{ opacity:1; }
+    /* Toggle bottom nav */
+.nav-toggle{
+  position:fixed;
+  right:15px;
+  bottom:110px; /* sopra al menu */
+  z-index:25;
+  background: var(--accent);
+  color:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:50%;
+  width:46px;
+  height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: var(--shadow);
+}
+
+.bottom-nav{
+  transition: transform .28s ease;
+}
+
+.bottom-nav.is-hidden{
+  transform: translateY(110%);
+}
+
   </style>
 </head>
 
@@ -483,6 +509,7 @@
   </div>
 
   <!-- Bottom nav -->
+  <button id="btnToggleNav" class="nav-toggle"><i class="fa-solid fa-bars"></i></button>
   <div class="bottom-nav">
     <div class="nav-inner">
       <button class="nav-btn active" data-route="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
@@ -1477,9 +1504,18 @@ renderHome();
 renderSaveStatus();
 startAutosave();
 wireAutosaveOnChange();
+  // Toggle bottom nav (show/hide)
+const btnToggleNav = document.getElementById("btnToggleNav");
+const bottomNav = document.querySelector(".bottom-nav");
+
+btnToggleNav.addEventListener("click", ()=>{
+  bottomNav.classList.toggle("is-hidden");
+});
+
 </script>
 </body>
 </html>
+
 
 
 

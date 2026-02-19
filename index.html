@@ -488,6 +488,8 @@
       <button class="nav-btn" data-route="impianti"><i class="fa-solid fa-fire-burner"></i><span>Impianti</span></button>
       <button class="nav-btn" data-route="illuminazione"><i class="fa-solid fa-lightbulb"></i><span>Luci</span></button>
       <button class="nav-btn" data-route="termografia"><i class="fa-solid fa-camera"></i><span>Termografia</span></button>
+      <button class="nav-btn" data-route="airleak"><i class="fa-solid fa-wind"></i><span>Air Leak</span></button>
+
     </div>
     <div class="nav-inner" style="margin-top:8px">
       <button class="nav-btn" data-route="hvac"><i class="fa-solid fa-fan"></i><span>HVAC</span></button>
@@ -635,7 +637,19 @@ const SECTIONS = {
       { id:"t_interna_c", label:"T. interna (°C)", type:"number", step:"0.1" },
       { id:"note", label:"Note", type:"text" }
     ]
-  }
+  },
+airleak: {
+  label: "Air Leak",
+  icon: "fa-wind",
+  key: "air_leak",
+  fields: [
+    { id:"id_leak", label:"ID", type:"number", step:"1" },
+    { id:"reparto", label:"Reparto", type:"text" },
+    { id:"componente", label:"Componente", type:"text" },
+    { id:"db", label:"dB", type:"number", step:"0.1" },
+    { id:"note", label:"Note", type:"text" }
+  ]
+}
 };
 
 function emptyProject(){
@@ -665,7 +679,8 @@ function emptyProject(){
       termografia: [],
       hvac: [],
       chiusure_trasparenti: [],
-      chiusure_opache: []
+      chiusure_opache: [],
+      air_leak: []
     }
   };
 }
@@ -1398,5 +1413,6 @@ wireAutosaveOnChange();
 </script>
 </body>
 </html>
+
 
 

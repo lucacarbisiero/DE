@@ -803,6 +803,10 @@ function setRoute(route){
     setRoute("home");
     return;
   }
+    if(!SECTIONS[route]){
+    toast("Sezione non configurata: " + route);
+    return;
+  }
   openSection(route);
 }
 
@@ -1475,6 +1479,7 @@ wireAutosaveOnChange();
 </script>
 </body>
 </html>
+
 
 
 

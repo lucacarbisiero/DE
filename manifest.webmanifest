@@ -1,18 +1,19 @@
 {
-  "name": "Diagnosi Energetica",
-  "short_name": "DE",
-  "start_url": ".",
+  "name": "Audit Energetico",
+  "short_name": "AUDIT",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "icona-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icon-512.png",
+      "src": "icona-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
